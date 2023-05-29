@@ -11,8 +11,8 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    #[clap(subcommand)]
-    Report(Report),
+    // #[clap(subcommand)]
+    // Report(Report),
     #[clap(subcommand)]
     Config(Config),
 }
@@ -39,7 +39,7 @@ pub enum Config {
 #[derive(Subcommand)]
 pub enum AmbientSoundControl {
     #[command(about = "Set Ambient Sound Mode")]
-    Asm {
+    Ambient {
         #[arg(short, long)]
         level: u8,
         #[arg(short, long)]

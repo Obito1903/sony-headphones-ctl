@@ -11,12 +11,12 @@ use crate::{DataType, Error, SonyCommand};
 use super::{Anc, DeviceCommand, SonyDevice};
 
 #[derive(Debug)]
-pub struct Wh1000xm4 {
+pub struct Wf1000xm4 {
     stream: Stream,
     _mac: Address,
 }
 
-impl SonyDevice for Wh1000xm4 {
+impl SonyDevice for Wf1000xm4 {
     async fn new(mac: Address) -> Result<Self, Error> {
         let target_sa = SocketAddr::new(mac, 9);
 
