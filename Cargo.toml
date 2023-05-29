@@ -3,11 +3,16 @@ name = "xm4"
 version = "0.1.0"
 edition = "2021"
 
+[toolchain]
+channel = "nightly"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bluer = { version = "0.15.7", features = ["full"] }
+clap = { version = "4.3.0", features = ["derive"] }
 derive-try-from-primitive = "1.0.0"
 env_logger = "0.10.0"
 hex = "0.4.3"
+lazy_static = "1.4.0"
 tokio = {version = "1.28.1", features = ["full"]}
