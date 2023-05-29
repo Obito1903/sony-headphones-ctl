@@ -1,5 +1,5 @@
 [package]
-name = "xm4"
+name = "sony-headphone-ctl"
 version = "0.1.0"
 edition = "2021"
 

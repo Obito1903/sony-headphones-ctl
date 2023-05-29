@@ -714,6 +714,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sony-headphone-ctl"
+version = "0.1.0"
+dependencies = [
+ "bluer",
+ "clap",
+ "derive-try-from-primitive",
+ "hex",
+ "tokio",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1009,14 +1020,3 @@ name = "windows_x86_64_msvc"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
-
-[[package]]
-name = "xm4"
-version = "0.1.0"
-dependencies = [
- "bluer",
- "clap",
- "derive-try-from-primitive",
- "hex",
- "tokio",
-]

@@ -33,13 +33,13 @@ sony-headphone-ctl --help
 Set Noise Canceling to wind noise reduction
 
 ```bash
-sony-ctl config anc nc --wind
+sony-headphone-ctl config anc nc --wind
 ```
 
 Set Noise Canceling to Ambient sound with level of 5 and voice passthrough
 
 ```bash
-sony-ctl config anc ambient --level 5 --voice
+sony-headphone-ctl config anc ambient --level 5 --voice
 ```
 
 ## Protocol Documentation
