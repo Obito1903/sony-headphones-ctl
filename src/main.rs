@@ -2,7 +2,7 @@ pub mod args;
 
 use args::{Args, Commands};
 use clap::Parser;
-use xm4::{devices::wf1000xm4::Wf1000xm4, devices::SonyDevice};
+use sony_headphone_ctl::devices::{wf1000xm4::Wf1000xm4, Anc, SonyDevice};
 
 async fn process<D: SonyDevice>(args: Args, mut device: D) {
     match args.command {
@@ -10,18 +10,15 @@ async fn process<D: SonyDevice>(args: Args, mut device: D) {
             args::Config::ANC(ambient_sound) => match ambient_sound {
                 args::AmbientSoundControl::Ambient { level, voice } => {
                     device
-                        .set_anc(xm4::devices::Anc::AmbientSound { level, voice })
+                        .set_anc(Anc::AmbientSound { level, voice })
                         .await
                         .unwrap();
                 }
                 args::AmbientSoundControl::NC { wind } => {
-                    device
-                        .set_anc(xm4::devices::Anc::NoiseCanceling { wind })
-                        .await
-                        .unwrap();
+                    device.set_anc(Anc::NoiseCanceling { wind }).await.unwrap();
                 }
                 args::AmbientSoundControl::Off => {
-                    device.set_anc(xm4::devices::Anc::Off).await.unwrap();
+                    device.set_anc(Anc::Off).await.unwrap();
                 }
             },
         },
