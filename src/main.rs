@@ -21,6 +21,10 @@ async fn process<D: SonyDevice>(args: Args, mut device: D) {
                     device.set_anc(Anc::Off).await.unwrap();
                 }
             },
+            args::Config::DSEE(dsee) => match dsee {
+                args::DseeControl::On => device.set_dsee(true).await.unwrap(),
+                args::DseeControl::Off => device.set_dsee(false).await.unwrap(),
+            },
         },
         _ => {
             unimplemented!()

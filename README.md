@@ -16,7 +16,7 @@ A small cli tool to control the Sony WF-1000XM4 (Earbuds)
 - [X] Ambient sound control
 - [ ] Equalizer
 - [ ] Connection Quality
-- [ ] DSEE Extreme
+- [X] DSEE Extreme
 - [ ] Speak-To-Chat
 - [ ] Automatic Power Off
 - [ ] Change Touch sensor function

@@ -34,6 +34,8 @@ pub enum Report {
 pub enum Config {
     #[clap(subcommand)]
     ANC(AmbientSoundControl),
+    #[clap(subcommand)]
+    DSEE(DseeControl),
 }
 
 #[derive(Subcommand)]
@@ -51,5 +53,13 @@ pub enum AmbientSoundControl {
         wind: bool,
     },
     #[command(about = "Disable Ambient Sound Control")]
+    Off,
+}
+
+#[derive(Subcommand)]
+pub enum DseeControl {
+    #[command(about = "Enable DSEE Extreme")]
+    On,
+    #[command(about = "Disable DSEE Extreme")]
     Off,
 }
