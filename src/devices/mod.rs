@@ -149,6 +149,10 @@ where
         unimplemented!()
     }
 
+    async fn set_pause_on_remove(&mut self, _pause_on_remove: bool) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     async fn set_touch_config(&mut self, _touch_sensor: TouchConfig) -> Result<(), Error> {
         unimplemented!()
     }

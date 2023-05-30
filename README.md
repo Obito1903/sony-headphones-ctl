@@ -19,7 +19,8 @@ A small cli tool to control the Sony WF-1000XM4 (Earbuds)
 - [ ] Connection Quality
 - [X] DSEE Extreme
 - [X] Speak-To-Chat
-- [ ] Automatic Power Off
+- [X] Automatic Power Off
+- [X] Wear detection
 - [ ] Change Touch sensor function
 - [ ] On device ASC settings
 - [ ] BT Multipoint

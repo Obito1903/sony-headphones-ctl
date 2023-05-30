@@ -23,14 +23,6 @@ async fn process<D: SonyDevice>(args: Cli, mut device: D) {
                     device.set_anc(Anc::Off).await.unwrap();
                 }
             },
-            args::Config::DSEE(dsee) => match dsee {
-                args::DseeControl::On => device.set_dsee(true).await.unwrap(),
-                args::DseeControl::Off => device.set_dsee(false).await.unwrap(),
-            },
-            args::Config::Stc(stc) => match stc {
-                args::SpeekToChatControl::On => device.set_speak_to_chat(true).await.unwrap(),
-                args::SpeekToChatControl::Off => device.set_speak_to_chat(false).await.unwrap(),
-            },
             args::Config::Eq(eq) => match eq {
                 args::EqualizerControl::Profile { profile } => {
                     let eq_profile = match profile {
@@ -76,7 +68,23 @@ async fn process<D: SonyDevice>(args: Cli, mut device: D) {
                         .unwrap();
                 }
             },
-            _ => {}
+            args::Config::DSEE(dsee) => match dsee {
+                args::Toggle::On => device.set_dsee(true).await.unwrap(),
+                args::Toggle::Off => device.set_dsee(false).await.unwrap(),
+            },
+            args::Config::Stc(stc) => match stc {
+                args::Toggle::On => device.set_speak_to_chat(true).await.unwrap(),
+                args::Toggle::Off => device.set_speak_to_chat(false).await.unwrap(),
+            },
+            args::Config::AutoPowerOff(auto_power_off) => match auto_power_off {
+                args::Toggle::On => device.set_auto_power_off(true).await.unwrap(),
+                args::Toggle::Off => device.set_auto_power_off(false).await.unwrap(),
+            },
+            args::Config::WearDetection(wear_detection) => match wear_detection {
+                args::Toggle::On => device.set_pause_on_remove(true).await.unwrap(),
+                args::Toggle::Off => device.set_pause_on_remove(false).await.unwrap(),
+            },
+            // _ => {}
         },
     }
 }

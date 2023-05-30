@@ -108,6 +108,36 @@ impl SonyDevice for Wf1000xm4 {
         Self::send_with_ack(&mut self.stream, command).await?;
         Ok(())
     }
+
+    async fn set_auto_power_off(&mut self, auto_power_off: bool) -> Result<(), Error> {
+        Self::send_with_ack(
+            &mut self.stream,
+            AutoPowerOffCommand {
+                command: CommandTypes::AncSet,
+                enable: match auto_power_off {
+                    true => ApoEnable::On,
+                    false => ApoEnable::Off,
+                },
+                _unknown: 0x00,
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn set_pause_on_remove(&mut self, pause_on_remove: bool) -> Result<(), Error> {
+        Self::send_with_ack(
+            &mut self.stream,
+            PauseRemovedCommand {
+                command: CommandTypes::AncSet,
+                enable: pause_on_remove,
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, TryFromPrimitive)]
@@ -166,6 +196,70 @@ impl TryInto<SonyCommand> for StcCommand {
         bytes.extend_from_slice(&(self.command as u16).to_be_bytes());
         bytes.push(!self.enable as u8);
         bytes.push(self._unknown);
+
+        Ok(SonyCommand {
+            data_type: DataType::DataMdr,
+            seq_number: 0,
+            payload_size: bytes.len() as u8,
+            payload: bytes,
+            checksum: 0,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[repr(u8)]
+pub enum ApoEnable {
+    Off = 0x11,
+    On = 0x10,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AutoPowerOffCommand {
+    command: CommandTypes,
+    enable: ApoEnable,
+    // Always 0x00
+    _unknown: u8,
+}
+
+impl DeviceCommand for AutoPowerOffCommand {}
+
+impl TryInto<SonyCommand> for AutoPowerOffCommand {
+    type Error = Error;
+
+    fn try_into(self) -> Result<SonyCommand, Self::Error> {
+        let mut bytes = vec![];
+
+        bytes.extend_from_slice(&(self.command as u16).to_be_bytes());
+        bytes.push(self.enable as u8);
+        bytes.push(self._unknown);
+
+        Ok(SonyCommand {
+            data_type: DataType::DataMdr,
+            seq_number: 0,
+            payload_size: bytes.len() as u8,
+            payload: bytes,
+            checksum: 0,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PauseRemovedCommand {
+    command: CommandTypes,
+    enable: bool,
+}
+
+impl DeviceCommand for PauseRemovedCommand {}
+
+impl TryInto<SonyCommand> for PauseRemovedCommand {
+    type Error = Error;
+
+    fn try_into(self) -> Result<SonyCommand, Self::Error> {
+        let mut bytes = vec![];
+
+        bytes.extend_from_slice(&(self.command as u16).to_be_bytes());
+        bytes.push(!self.enable as u8);
 
         Ok(SonyCommand {
             data_type: DataType::DataMdr,

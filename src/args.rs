@@ -1,11 +1,11 @@
-use clap::{self, Args, Parser, Subcommand, ValueEnum};
+use clap::{self, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(name = "sony-ctl")]
 #[command(author, version, about = "Sony Headphones CLI", long_about = None)]
 
 pub struct Cli {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub command: Commands,
 }
 
@@ -13,33 +13,37 @@ pub struct Cli {
 pub enum Commands {
     // #[clap(subcommand)]
     // Report(Report),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Config(Config),
 }
 
 #[derive(Subcommand)]
 pub enum Report {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     // TODO: Add subcommand
     Battery,
-    #[clap(subcommand)]
+    #[command(subcommand)]
     // TODO: Add subcommand
     DeviceInfo,
     // TODO: Add subcommand
-    #[clap(subcommand)]
+    #[command(subcommand)]
     RegisteredDevices,
 }
 
 #[derive(Subcommand)]
 pub enum Config {
-    #[clap(subcommand)]
+    #[command(subcommand, about = "Set Ambient Sound Control")]
     ANC(AmbientSoundControl),
-    #[clap(subcommand)]
-    DSEE(DseeControl),
-    #[clap(subcommand)]
-    Stc(SpeekToChatControl),
-    #[clap(subcommand)]
+    #[command(subcommand, about = "Set Equalizer")]
     Eq(EqualizerControl),
+    #[command(subcommand, about = "Toggle DSEE Extreme")]
+    DSEE(Toggle),
+    #[command(subcommand, about = "Toggle Speak-to-Chat")]
+    Stc(Toggle),
+    #[command(subcommand, about = "Toggle Wearing Detection")]
+    WearDetection(Toggle),
+    #[command(subcommand, about = "Toggle Auto Power Off")]
+    AutoPowerOff(Toggle),
 }
 
 #[derive(Subcommand)]
@@ -61,18 +65,8 @@ pub enum AmbientSoundControl {
 }
 
 #[derive(Subcommand)]
-pub enum DseeControl {
-    #[command(about = "Enable DSEE Extreme")]
+pub enum Toggle {
     On,
-    #[command(about = "Disable DSEE Extreme")]
-    Off,
-}
-
-#[derive(Subcommand)]
-pub enum SpeekToChatControl {
-    #[command(about = "Enable Speak to Chat")]
-    On,
-    #[command(about = "Disable Speak to Chat")]
     Off,
 }
 
