@@ -1,10 +1,12 @@
 pub mod args;
 
-use args::{Args, Commands};
+use args::{Cli, Commands};
 use clap::Parser;
-use sony_headphone_ctl::devices::{wf1000xm4::Wf1000xm4, Anc, SonyDevice};
+use sony_headphone_ctl::devices::{
+    wf1000xm4::Wf1000xm4, Anc, Bands, Equalizer, EqualizerProfile, SonyDevice,
+};
 
-async fn process<D: SonyDevice>(args: Args, mut device: D) {
+async fn process<D: SonyDevice>(args: Cli, mut device: D) {
     match args.command {
         Commands::Config(config) => match config {
             args::Config::ANC(ambient_sound) => match ambient_sound {
@@ -29,13 +31,59 @@ async fn process<D: SonyDevice>(args: Args, mut device: D) {
                 args::SpeekToChatControl::On => device.set_speak_to_chat(true).await.unwrap(),
                 args::SpeekToChatControl::Off => device.set_speak_to_chat(false).await.unwrap(),
             },
+            args::Config::Eq(eq) => match eq {
+                args::EqualizerControl::Profile { profile } => {
+                    let eq_profile = match profile {
+                        args::EqualizerProfile::Off => EqualizerProfile::Off,
+                        args::EqualizerProfile::Custom1 => EqualizerProfile::Custom1,
+                        args::EqualizerProfile::Custom2 => EqualizerProfile::Custom2,
+                    };
+                    device
+                        .set_equalizer(Equalizer {
+                            profile: eq_profile,
+                            bands: Bands::Zero(),
+                        })
+                        .await
+                        .unwrap();
+                }
+                args::EqualizerControl::SixBand {
+                    profile,
+                    bass,
+                    b400k,
+                    b1k,
+                    b2k5,
+                    b6k3,
+                    b16k,
+                } => {
+                    let eq_profile = match profile {
+                        args::EqualizerProfile::Off => EqualizerProfile::Off,
+                        args::EqualizerProfile::Custom1 => EqualizerProfile::Custom1,
+                        args::EqualizerProfile::Custom2 => EqualizerProfile::Custom2,
+                    };
+                    device
+                        .set_equalizer(Equalizer {
+                            profile: eq_profile,
+                            bands: Bands::FiveBandsAndBass {
+                                bass,
+                                b400k,
+                                b1k,
+                                b2k5,
+                                b6k3,
+                                b16k,
+                            },
+                        })
+                        .await
+                        .unwrap();
+                }
+            },
+            _ => {}
         },
     }
 }
 
 #[tokio::main]
 async fn main() -> bluer::Result<()> {
-    let args = args::Args::parse();
+    let args = args::Cli::parse();
 
     let session = bluer::Session::new().await?;
     let adapter = session.default_adapter().await?;

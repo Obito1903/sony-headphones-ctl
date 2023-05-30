@@ -14,7 +14,8 @@ A small cli tool to control the Sony WF-1000XM4 (Earbuds)
 ### Config
 
 - [X] Ambient sound control
-- [ ] Equalizer
+- [X] Equalizer
+  - Missing some profiles
 - [ ] Connection Quality
 - [X] DSEE Extreme
 - [X] Speak-To-Chat

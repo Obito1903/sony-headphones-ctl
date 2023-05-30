@@ -8,11 +8,15 @@ use derive_try_from_primitive::TryFromPrimitive;
 
 use crate::{DataType, Error, SonyCommand};
 
-use self::anc::{AncCommand, AncMode, AsLevel, WindCode};
+use self::{
+    anc::{AncCommand, AncMode, AsLevel, WindCode},
+    equalizer::EqualizerCommand,
+};
 
-use super::{Anc, DeviceCommand, SonyDevice};
+use super::{Anc, DeviceCommand, Equalizer, SonyDevice};
 
 pub mod anc;
+pub mod equalizer;
 
 #[derive(Debug)]
 pub struct Wf1000xm4 {
@@ -78,6 +82,12 @@ impl SonyDevice for Wf1000xm4 {
         Ok(())
     }
 
+    async fn set_equalizer(&mut self, eq: Equalizer) -> Result<(), Error> {
+        let command: EqualizerCommand = eq.try_into()?;
+        Self::send_with_ack(&mut self.stream, command).await?;
+        Ok(())
+    }
+
     async fn set_dsee(&mut self, dsee: bool) -> Result<(), Error> {
         let command: DseeCommand = DseeCommand {
             command: CommandTypes::DseeSet,
@@ -107,6 +117,7 @@ pub enum CommandTypes {
     AncAck = 0x6915,
     DseeSet = 0xe801,
     StcSet = 0xf802,
+    EqSet = 0x5800,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -82,3 +82,63 @@ Payload :
 | DSEE Extreme enable - 1B |
 | ------------------------ |
 | `0` or `1`               |
+
+#### Equalizer
+
+Codes :
+
+- `0x5800` : Write
+- `0x5900` : Read
+
+##### Set Equalizer
+
+
+Payload :
+
+| Command - 2B | Profile - 1B | Number of bands - 1B | Bass - 1B | 400 - 1B | 1k - 1B | 2.5k - 1B | 6.3k - 1B | 16k - 1B |
+| ------------ | ------------ | -------------------- | --------- | -------- | ------- | --------- | --------- | -------- |
+| `5800`       | `a1`         | `0x06`               |           |          |         |           |           |          |
+
+Each band can go from -10db (`0x00`) to +10db (`0x14`), +0 being `0x04`
+
+##### Set Profile
+
+| Command - 2B | Profile - 1B | Number of bands - 1B |
+| ------------ | ------------ | -------------------- |
+| `0x5800`     |              | `0x00`               |
+
+| Profile  | Code   |
+| -------- | ------ |
+| Off      | `0x00` |
+| Custom 1 | `0xa1` |
+| Custom 2 | `0xa2` |
+| ...      |        |
+
+Headset will respond with Ack then send back the current state of the equalizer with command `5900`
+
+#### Automatic Power Off
+
+| Command - 2B | Auto Off - 1B                | ?? - 1B |
+| ------------ | ---------------------------- | ------- |
+| `0x2805`     | `0x11` => Off , `0x10` => On | `0x00`  |
+
+
+Headset will respond with Ack then send back the current state of this option with command `0x2905`
+
+#### Pause when removed
+
+| Command - 2B | Pause - 1B                  |
+| ------------ | --------------------------- |
+| `f801`       | `0x00` => On, `0x01` => Off |
+
+
+Headset will respond with Ack then send back the current state of this option with command `0xf901`
+
+#### Notification & Voice Guide
+
+| Command - 2B | Notif - 1B                  |
+| ------------ | --------------------------- |
+| `4801`       | `0x00` => On, `0x01` => Off |
+
+
+Headset will respond with Ack then send back the current state of this option with command `0x4901`

@@ -14,7 +14,7 @@ pub const SONY_DEVICES: &[&str] = &["WF-1000XM4"];
 
 pub trait DeviceCommand
 where
-    Self: Sized + Copy + Debug + TryInto<SonyCommand, Error = Error>,
+    Self: Sized + Clone + Debug + TryInto<SonyCommand, Error = Error>,
 {
 }
 
@@ -83,7 +83,7 @@ where
 
     async fn send_with_ack<C: DeviceCommand>(stream: &mut Stream, command: C) -> Result<(), Error> {
         for _ in 0..3 {
-            Self::send_command(stream, command).await?;
+            Self::send_command(stream, command.clone()).await?;
             match Self::wait_ack(stream).await {
                 Ok(_) => return Ok(()),
                 Err(_) => {}
@@ -187,8 +187,66 @@ pub enum Anc {
     Off,
 }
 
-// TODO: Implement
-pub struct Equalizer {}
+#[derive(Debug, Clone, Copy)]
+pub enum EqualizerProfile {
+    Off,
+    Custom1,
+    Custom2,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Bands {
+    Zero(),
+    FiveBandsAndBass {
+        bass: i8,
+        b400k: i8,
+        b1k: i8,
+        b2k5: i8,
+        b6k3: i8,
+        b16k: i8,
+    },
+}
+
+impl Bands {
+    pub fn validate(&self) -> Result<(), Error> {
+        match self {
+            Bands::Zero() => Ok(()),
+            Bands::FiveBandsAndBass {
+                bass,
+                b400k,
+                b1k,
+                b2k5,
+                b6k3,
+                b16k,
+            } => {
+                if *bass <= -10 || *bass >= 10 {
+                    return Err(Error::new(format!("Invalid bass value: {:?}", bass)));
+                }
+                if *b400k <= -10 || *b400k >= 10 {
+                    return Err(Error::new(format!("Invalid 400k value: {:?}", b400k)));
+                }
+                if *b1k <= -10 || *b1k >= 10 {
+                    return Err(Error::new(format!("Invalid 1k value: {:?}", b1k)));
+                }
+                if *b2k5 <= -10 || *b2k5 >= 10 {
+                    return Err(Error::new(format!("Invalid 2k5 value: {:?}", b2k5)));
+                }
+                if *b6k3 <= -10 || *b6k3 >= 10 {
+                    return Err(Error::new(format!("Invalid 6k3 value: {:?}", b6k3)));
+                }
+                if *b16k <= -10 || *b16k >= 10 {
+                    return Err(Error::new(format!("Invalid 16k value: {:?}", b16k)));
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+pub struct Equalizer {
+    pub profile: EqualizerProfile,
+    pub bands: Bands,
+}
 
 // TODO: Implement
 pub struct TouchConfig {}
