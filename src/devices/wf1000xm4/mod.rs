@@ -87,6 +87,17 @@ impl SonyDevice for Wf1000xm4 {
         Self::send_with_ack(&mut self.stream, command).await?;
         Ok(())
     }
+
+    async fn set_speak_to_chat(&mut self, speak_to_chat: bool) -> Result<(), Error> {
+        let command: StcCommand = StcCommand {
+            command: CommandTypes::StcSet,
+            enable: speak_to_chat,
+            _unknown: 0x01,
+        };
+
+        Self::send_with_ack(&mut self.stream, command).await?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, TryFromPrimitive)]
@@ -95,12 +106,13 @@ pub enum CommandTypes {
     AncSet = 0x6815,
     AncAck = 0x6915,
     DseeSet = 0xe801,
+    StcSet = 0xf802,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct DseeCommand {
-    pub command: CommandTypes,
-    pub enable: bool,
+struct DseeCommand {
+    command: CommandTypes,
+    enable: bool,
 }
 
 impl DeviceCommand for DseeCommand {}
@@ -113,6 +125,36 @@ impl TryInto<SonyCommand> for DseeCommand {
 
         bytes.extend_from_slice(&(self.command as u16).to_be_bytes());
         bytes.push(self.enable as u8);
+
+        Ok(SonyCommand {
+            data_type: DataType::DataMdr,
+            seq_number: 0,
+            payload_size: bytes.len() as u8,
+            payload: bytes,
+            checksum: 0,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StcCommand {
+    command: CommandTypes,
+    enable: bool,
+    // Always 0x01
+    _unknown: u8,
+}
+
+impl DeviceCommand for StcCommand {}
+
+impl TryInto<SonyCommand> for StcCommand {
+    type Error = Error;
+
+    fn try_into(self) -> Result<SonyCommand, Self::Error> {
+        let mut bytes = vec![];
+
+        bytes.extend_from_slice(&(self.command as u16).to_be_bytes());
+        bytes.push(!self.enable as u8);
+        bytes.push(self._unknown);
 
         Ok(SonyCommand {
             data_type: DataType::DataMdr,

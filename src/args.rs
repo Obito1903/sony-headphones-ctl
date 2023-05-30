@@ -36,6 +36,8 @@ pub enum Config {
     ANC(AmbientSoundControl),
     #[clap(subcommand)]
     DSEE(DseeControl),
+    #[clap(subcommand)]
+    Stc(SpeekToChatControl),
 }
 
 #[derive(Subcommand)]
@@ -61,5 +63,13 @@ pub enum DseeControl {
     #[command(about = "Enable DSEE Extreme")]
     On,
     #[command(about = "Disable DSEE Extreme")]
+    Off,
+}
+
+#[derive(Subcommand)]
+pub enum SpeekToChatControl {
+    #[command(about = "Enable Speak to Chat")]
+    On,
+    #[command(about = "Disable Speak to Chat")]
     Off,
 }

@@ -135,6 +135,13 @@ where
         unimplemented!()
     }
 
+    async fn set_speak_to_chat(&mut self, _speek_to_chat: bool) -> Result<(), Error> {
+        unimplemented!()
+    }
+    async fn get_speak_to_chat(&self) -> Result<bool, Error> {
+        unimplemented!()
+    }
+
     async fn set_auto_power_off(&mut self, _auto_power_off: bool) -> Result<(), Error> {
         unimplemented!()
     }

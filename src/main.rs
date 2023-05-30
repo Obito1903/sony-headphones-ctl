@@ -25,10 +25,11 @@ async fn process<D: SonyDevice>(args: Args, mut device: D) {
                 args::DseeControl::On => device.set_dsee(true).await.unwrap(),
                 args::DseeControl::Off => device.set_dsee(false).await.unwrap(),
             },
+            args::Config::Stc(stc) => match stc {
+                args::SpeekToChatControl::On => device.set_speak_to_chat(true).await.unwrap(),
+                args::SpeekToChatControl::Off => device.set_speak_to_chat(false).await.unwrap(),
+            },
         },
-        _ => {
-            unimplemented!()
-        }
     }
 }
 
