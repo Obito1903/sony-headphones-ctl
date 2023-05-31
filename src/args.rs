@@ -1,4 +1,5 @@
-use clap::{self, Parser, Subcommand, ValueEnum};
+use clap::{self, Args, Parser, Subcommand, ValueEnum};
+use sony_headphone_ctl::devices::{self};
 
 #[derive(Parser)]
 #[command(name = "sony-ctl")]
@@ -15,6 +16,7 @@ pub enum Commands {
     // Report(Report),
     #[command(subcommand)]
     Config(Config),
+    Debug(Debug),
 }
 
 #[derive(Subcommand)]
@@ -46,11 +48,18 @@ pub enum Config {
     AutoPowerOff(Toggle),
 }
 
+#[derive(Args)]
+pub struct Debug {
+    #[arg(short, long)]
+    pub listen: bool,
+    pub data_type: u8,
+    pub hex: String,
+}
+
 #[derive(Subcommand)]
 pub enum AmbientSoundControl {
     #[command(about = "Set Ambient Sound Mode")]
     Ambient {
-        #[arg(short, long)]
         level: u8,
         #[arg(short, long)]
         voice: bool,
@@ -70,6 +79,15 @@ pub enum Toggle {
     Off,
 }
 
+impl Into<bool> for Toggle {
+    fn into(self) -> bool {
+        match self {
+            Toggle::On => true,
+            Toggle::Off => false,
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum EqualizerProfile {
     Off,
@@ -77,17 +95,17 @@ pub enum EqualizerProfile {
     Custom2,
 }
 
-// #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-// pub enum Bands {
-//     FiveBandsAndBass {
-//         bass: i8,
-//         b400k: i8,
-//         b1k: i8,
-//         b2k5: i8,
-//         b6k3: i8,
-//         b16k: i8,
-//     },
-// }
+impl TryInto<devices::EqualizerProfile> for EqualizerProfile {
+    type Error = ();
+
+    fn try_into(self) -> Result<devices::EqualizerProfile, Self::Error> {
+        match self {
+            EqualizerProfile::Off => Ok(devices::EqualizerProfile::Off),
+            EqualizerProfile::Custom1 => Ok(devices::EqualizerProfile::Custom1),
+            EqualizerProfile::Custom2 => Ok(devices::EqualizerProfile::Custom2),
+        }
+    }
+}
 
 #[derive(Subcommand)]
 pub enum EqualizerControl {
@@ -109,4 +127,36 @@ pub enum EqualizerControl {
         #[arg(value_parser = clap::value_parser!(i8).range(-10..11))]
         b16k: i8,
     },
+}
+
+impl TryInto<devices::DeviceMessage> for EqualizerControl {
+    type Error = ();
+
+    fn try_into(self) -> Result<devices::DeviceMessage, Self::Error> {
+        match self {
+            EqualizerControl::Profile { profile } => Ok(devices::DeviceMessage::Equalizer {
+                profile: profile.try_into().unwrap(),
+                bands: devices::Bands::Zero(),
+            }),
+            EqualizerControl::SixBand {
+                profile,
+                bass,
+                b400k,
+                b1k,
+                b2k5,
+                b6k3,
+                b16k,
+            } => Ok(devices::DeviceMessage::Equalizer {
+                profile: profile.try_into().unwrap(),
+                bands: devices::Bands::FiveBandsAndBass {
+                    bass,
+                    b400k,
+                    b1k,
+                    b2k5,
+                    b6k3,
+                    b16k,
+                },
+            }),
+        }
+    }
 }

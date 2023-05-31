@@ -2,89 +2,47 @@ pub mod args;
 
 use args::{Cli, Commands};
 use clap::Parser;
-use sony_headphone_ctl::devices::{
-    wf1000xm4::Wf1000xm4, Anc, Bands, Equalizer, EqualizerProfile, SonyDevice,
-};
+use sony_headphone_ctl::devices::{wf1000xm4::Wf1000xm4, Anc, DeviceMessage, SonyDevice};
 
 async fn process<D: SonyDevice>(args: Cli, mut device: D) {
     match args.command {
-        Commands::Config(config) => match config {
-            args::Config::ANC(ambient_sound) => match ambient_sound {
-                args::AmbientSoundControl::Ambient { level, voice } => {
-                    device
-                        .set_anc(Anc::AmbientSound { level, voice })
-                        .await
-                        .unwrap();
+        Commands::Config(config) => {
+            let option = match config {
+                args::Config::ANC(anc) => DeviceMessage::Anc(match anc {
+                    args::AmbientSoundControl::Off => Anc::Off,
+                    args::AmbientSoundControl::Ambient { level, voice } => {
+                        Anc::AmbientSound { level, voice }
+                    }
+                    args::AmbientSoundControl::NC { wind } => Anc::NoiseCanceling { wind },
+                }),
+                args::Config::Eq(eq) => eq.try_into().unwrap(),
+                args::Config::DSEE(dsee) => DeviceMessage::Dsee(dsee.into()),
+                args::Config::Stc(stc) => DeviceMessage::SpeakToChat(stc.into()),
+                args::Config::AutoPowerOff(apo) => DeviceMessage::AutoPowerOff(apo.into()),
+                args::Config::WearDetection(wd) => DeviceMessage::WearDetection(wd.into()),
+                // _ => DeviceOption::Unknown(vec![]),
+            };
+
+            device.set(option).await.unwrap();
+        }
+        Commands::Debug(debug) => match debug {
+            args::Debug {
+                listen,
+                data_type,
+                hex,
+            } => {
+                <D as SonyDevice>::send_hex(
+                    device.get_stream(),
+                    data_type.try_into().unwrap(),
+                    hex::decode(hex).unwrap(),
+                )
+                .await
+                .unwrap();
+
+                if listen {
+                    <D as SonyDevice>::listen(device.get_stream()).await;
                 }
-                args::AmbientSoundControl::NC { wind } => {
-                    device.set_anc(Anc::NoiseCanceling { wind }).await.unwrap();
-                }
-                args::AmbientSoundControl::Off => {
-                    device.set_anc(Anc::Off).await.unwrap();
-                }
-            },
-            args::Config::Eq(eq) => match eq {
-                args::EqualizerControl::Profile { profile } => {
-                    let eq_profile = match profile {
-                        args::EqualizerProfile::Off => EqualizerProfile::Off,
-                        args::EqualizerProfile::Custom1 => EqualizerProfile::Custom1,
-                        args::EqualizerProfile::Custom2 => EqualizerProfile::Custom2,
-                    };
-                    device
-                        .set_equalizer(Equalizer {
-                            profile: eq_profile,
-                            bands: Bands::Zero(),
-                        })
-                        .await
-                        .unwrap();
-                }
-                args::EqualizerControl::SixBand {
-                    profile,
-                    bass,
-                    b400k,
-                    b1k,
-                    b2k5,
-                    b6k3,
-                    b16k,
-                } => {
-                    let eq_profile = match profile {
-                        args::EqualizerProfile::Off => EqualizerProfile::Off,
-                        args::EqualizerProfile::Custom1 => EqualizerProfile::Custom1,
-                        args::EqualizerProfile::Custom2 => EqualizerProfile::Custom2,
-                    };
-                    device
-                        .set_equalizer(Equalizer {
-                            profile: eq_profile,
-                            bands: Bands::FiveBandsAndBass {
-                                bass,
-                                b400k,
-                                b1k,
-                                b2k5,
-                                b6k3,
-                                b16k,
-                            },
-                        })
-                        .await
-                        .unwrap();
-                }
-            },
-            args::Config::DSEE(dsee) => match dsee {
-                args::Toggle::On => device.set_dsee(true).await.unwrap(),
-                args::Toggle::Off => device.set_dsee(false).await.unwrap(),
-            },
-            args::Config::Stc(stc) => match stc {
-                args::Toggle::On => device.set_speak_to_chat(true).await.unwrap(),
-                args::Toggle::Off => device.set_speak_to_chat(false).await.unwrap(),
-            },
-            args::Config::AutoPowerOff(auto_power_off) => match auto_power_off {
-                args::Toggle::On => device.set_auto_power_off(true).await.unwrap(),
-                args::Toggle::Off => device.set_auto_power_off(false).await.unwrap(),
-            },
-            args::Config::WearDetection(wear_detection) => match wear_detection {
-                args::Toggle::On => device.set_pause_on_remove(true).await.unwrap(),
-                args::Toggle::Off => device.set_pause_on_remove(false).await.unwrap(),
-            },
-            // _ => {}
+            }
         },
     }
 }

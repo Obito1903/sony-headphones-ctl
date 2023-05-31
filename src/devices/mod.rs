@@ -1,6 +1,7 @@
-use std::{fmt::Debug, time::Duration};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 use bluer::{rfcomm::Stream, Address};
+use derive_try_from_primitive::TryFromPrimitive;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     time::timeout,
@@ -14,7 +15,7 @@ pub const SONY_DEVICES: &[&str] = &["WF-1000XM4"];
 
 pub trait DeviceCommand
 where
-    Self: Sized + Clone + Debug + TryInto<SonyCommand, Error = Error>,
+    Self: Debug + TryInto<SonyCommand, Error = Error>,
 {
 }
 
@@ -24,8 +25,9 @@ where
 {
     async fn new(mac: Address) -> Result<Self, Error>;
 
-    async fn send_command<C: DeviceCommand>(stream: &mut Stream, command: C) -> Result<(), Error> {
-        let command: SonyCommand = command.try_into()?;
+    fn get_stream(&mut self) -> &mut Stream;
+
+    async fn send(stream: &mut Stream, command: SonyCommand) -> Result<(), Error> {
         // println!("Sending {:?}", command);
         let raw_command: Vec<u8> = command.try_into()?;
         // println!("Sending raw {:?}", hex::encode(&raw_command));
@@ -34,6 +36,30 @@ where
             .await
             .map_err(|x| Error::new(x.to_string()))?;
         Ok(())
+    }
+
+    async fn send_hex(stream: &mut Stream, data_type: DataType, hex: Vec<u8>) -> Result<(), Error> {
+        let command = SonyCommand {
+            data_type: data_type,
+            seq_number: 0,
+            payload_size: hex.len() as u8,
+            payload: hex,
+            checksum: 0,
+        };
+        let raw_command: Vec<u8> = command.try_into()?;
+        // println!("Sending raw {:?}", hex::encode(&raw_command));
+        stream
+            .write_all(&raw_command.as_slice())
+            .await
+            .map_err(|x| Error::new(x.to_string()))?;
+        Ok(())
+    }
+
+    async fn listen(stream: &mut Stream) {
+        loop {
+            let command = Self::read(stream).await.unwrap();
+            // println!("Received {:?}", command);
+        }
     }
 
     async fn send_ack(stream: &mut Stream) -> Result<(), Error> {
@@ -71,7 +97,10 @@ where
             Ok(res) => {
                 let cmd = res?;
                 match cmd.data_type {
-                    DataType::Ack => return Ok(()),
+                    DataType::Ack => {
+                        // println!("Received Ack");
+                        return Ok(());
+                    }
                     _ => {
                         return Err(Error::new(format!("Invalid Ack received: {:?}", cmd)));
                     }
@@ -81,121 +110,97 @@ where
         }
     }
 
-    async fn send_with_ack<C: DeviceCommand>(stream: &mut Stream, command: C) -> Result<(), Error> {
+    async fn send_wait_ack(stream: &mut Stream, command: SonyCommand) -> Result<(), Error> {
         for _ in 0..3 {
-            Self::send_command(stream, command.clone()).await?;
+            Self::send(stream, command.clone()).await?;
             match Self::wait_ack(stream).await {
                 Ok(_) => return Ok(()),
                 Err(_) => {}
             }
         }
-        Self::send_command(stream, command).await?;
-        Self::send_ack(stream).await?;
         Ok(())
     }
 
-    async fn get_device_info(&self) -> Result<DeviceInfo, Error> {
-        unimplemented!()
-    }
-    async fn get_battery_info(&self) -> Result<BatteryInfo, Error> {
-        unimplemented!()
-    }
-    async fn get_registered_devices(&self) -> Result<RegisteredDevices, Error> {
+    fn decode(_command: SonyCommand) -> Result<DeviceMessage, Error> {
         unimplemented!()
     }
 
-    async fn set_anc(&mut self, _anc: Anc) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_anc(&mut self) -> Result<Anc, Error> {
+    async fn encode(_option: DeviceMessage) -> Result<SonyCommand, Error> {
         unimplemented!()
     }
 
-    async fn set_equalizer(&mut self, _equalizer: Equalizer) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_equalizer(&self) -> Result<Equalizer, Error> {
-        unimplemented!()
+    async fn set_and_ack(stream: &mut Stream, option: DeviceMessage) -> Result<(), Error> {
+        let command = Self::encode(option).await?;
+        Self::send_wait_ack(stream, command).await
     }
 
-    async fn set_connection_quality(
-        &mut self,
-        _connection_quality: ConnectionQuality,
-    ) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_connection_quality(&self) -> Result<ConnectionQuality, Error> {
-        unimplemented!()
+    async fn set_and_confirm(stream: &mut Stream, option: DeviceMessage) -> Result<(), Error> {
+        let command = Self::encode(option).await?;
+        Self::send_wait_ack(stream, command).await?;
+        let current_state = Self::decode(Self::read(stream).await?)?;
+
+        println!("Current state: {:?}", current_state);
+
+        Ok(())
     }
 
-    async fn set_dsee(&mut self, _dsee: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_dsee(&self) -> Result<bool, Error> {
-        unimplemented!()
-    }
-
-    async fn set_speak_to_chat(&mut self, _speek_to_chat: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_speak_to_chat(&self) -> Result<bool, Error> {
-        unimplemented!()
-    }
-
-    async fn set_auto_power_off(&mut self, _auto_power_off: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_auto_power_off(&self) -> Result<bool, Error> {
-        unimplemented!()
-    }
-
-    async fn set_pause_on_remove(&mut self, _pause_on_remove: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    async fn set_touch_config(&mut self, _touch_sensor: TouchConfig) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_touch_config(&self) -> Result<TouchConfig, Error> {
-        unimplemented!()
-    }
-
-    async fn set_on_device_anc(&mut self, _on_device_control: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_on_device_anc(&self) -> Result<bool, Error> {
-        unimplemented!()
-    }
-
-    async fn set_bt_multipoint(&mut self, _bt_multipoint: bool) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn get_bt_multipoint(&self) -> Result<bool, Error> {
-        unimplemented!()
-    }
+    async fn set(&mut self, option: DeviceMessage) -> Result<(), Error>;
 }
 
 // TODO: Implement
-pub struct DeviceInfo {}
+
+#[derive(Debug)]
+pub enum DeviceMessage {
+    RegisteredDevices(Vec<RegisteredDevice>),
+    BatteryInfo(BatteryInfo),
+    DeviceInfo(HashMap<String, String>),
+    Anc(Anc),
+    Equalizer {
+        profile: EqualizerProfile,
+        bands: Bands,
+    },
+    ConnectionQuality(bool),
+    Dsee(bool),
+    SpeakToChat(bool),
+    AutoPowerOff(bool),
+    WearDetection(bool),
+    TouchConfig(TouchConfig),
+    OnDeviceAnc {
+        asm: bool,
+        nc: bool,
+        off: bool,
+    },
+    BtMultipoint(bool),
+    Ack(),
+    Unknown(Vec<u8>),
+}
+
+#[derive(Debug)]
+pub struct RegisteredDevice {
+    pub name: String,
+    pub mac: Address,
+}
+
+#[derive(Debug)]
 pub enum BatteryInfo {
     Headphones(u8),
     // Left, Right, case
     Earbuds(u8, u8, u8),
 }
 
-pub struct RegisteredDevices {}
-
+#[derive(Debug)]
 pub enum Anc {
     AmbientSound { level: u8, voice: bool },
     NoiseCanceling { wind: bool },
     Off,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+#[repr(u8)]
 pub enum EqualizerProfile {
-    Off,
-    Custom1,
-    Custom2,
+    Off = 0x00,
+    Custom1 = 0xa1,
+    Custom2 = 0xa2,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -252,6 +257,7 @@ pub struct Equalizer {
     pub bands: Bands,
 }
 
+#[derive(Debug)]
 // TODO: Implement
 pub struct TouchConfig {}
 

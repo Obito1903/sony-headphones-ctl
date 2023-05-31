@@ -8,12 +8,9 @@ use derive_try_from_primitive::TryFromPrimitive;
 
 use crate::{DataType, Error, SonyCommand};
 
-use self::{
-    anc::{AncCommand, AncMode, AsLevel, WindCode},
-    equalizer::EqualizerCommand,
-};
+use self::{anc::AncWF1000XM4, equalizer::EqualizerCommand};
 
-use super::{Anc, DeviceCommand, Equalizer, SonyDevice};
+use super::{DeviceCommand, DeviceMessage, Equalizer, SonyDevice};
 
 pub mod anc;
 pub mod equalizer;
@@ -41,118 +38,118 @@ impl SonyDevice for Wf1000xm4 {
         })
     }
 
-    async fn set_anc(&mut self, anc: Anc) -> Result<(), Error> {
-        let command: AncCommand = match anc {
-            Anc::AmbientSound { level, voice } => AncCommand {
-                command: CommandTypes::AncSet,
-                continuous: false,
-                anc_enable: true,
-                anc_mode: AncMode::AmbientSound,
-                nc_wind: WindCode::NoWind,
-                as_voice: voice,
-                as_level: level
-                    .try_into()
-                    .map_err(|x| Error::new(format!("Invalid ANC level {:?}", x)))?,
-            },
-            Anc::NoiseCanceling { wind } => AncCommand {
-                command: CommandTypes::AncSet,
-                continuous: false,
-                anc_enable: true,
-                anc_mode: AncMode::NoiseCanceling,
-                nc_wind: if wind {
-                    WindCode::Wind
-                } else {
-                    WindCode::NoWind
-                },
-                as_voice: false,
-                as_level: AsLevel::Level1,
-            },
-            Anc::Off => AncCommand {
-                command: CommandTypes::AncSet,
-                continuous: false,
-                anc_enable: false,
-                anc_mode: AncMode::NoiseCanceling,
-                nc_wind: WindCode::NoWind,
-                as_voice: false,
-                as_level: AsLevel::Level1,
-            },
-        };
-
-        Self::send_with_ack(&mut self.stream, command).await?;
-        Ok(())
+    fn get_stream(&mut self) -> &mut Stream {
+        &mut self.stream
     }
 
-    async fn set_equalizer(&mut self, eq: Equalizer) -> Result<(), Error> {
-        let command: EqualizerCommand = eq.try_into()?;
-        Self::send_with_ack(&mut self.stream, command).await?;
-        Ok(())
+    fn decode(command: SonyCommand) -> Result<super::DeviceMessage, Error> {
+        match command.data_type {
+            DataType::DataMdr => {
+                match MessageCode::try_from(u16::from_be_bytes([
+                    command.payload[0],
+                    command.payload[1],
+                ]))
+                .map_err(|x| Error::new(format!("Unknown command type {:?}", x)))?
+                {
+                    MessageCode::AncAck | MessageCode::AncSet => Ok(super::DeviceMessage::Anc(
+                        AncWF1000XM4::try_from(command.payload)?.try_into()?,
+                    )),
+                    MessageCode::EqAck | MessageCode::EqSet => {
+                        Ok(EqualizerCommand::try_from(command.payload)?.try_into()?)
+                    }
+                    MessageCode::DseeAck | MessageCode::DseeSet => {
+                        Ok(super::DeviceMessage::Dsee(command.payload[2] == 0x01))
+                    }
+                    MessageCode::StcAck | MessageCode::StcSet => Ok(
+                        super::DeviceMessage::SpeakToChat(command.payload[2] == 0x00),
+                    ),
+                    MessageCode::AutoPowerAck | MessageCode::AutoPowerSet => Ok(
+                        super::DeviceMessage::AutoPowerOff(command.payload[2] == 0x10),
+                    ),
+                    MessageCode::WearDetectionAck | MessageCode::WearDetectionSet => Ok(
+                        super::DeviceMessage::WearDetection(command.payload[2] == 0x00),
+                    ),
+                    ct => unimplemented!("Unimplemented command type {:?}", ct),
+                }
+            }
+            DataType::Ack => Ok(DeviceMessage::Ack()),
+            _ => Err(Error::new(format!(
+                "Unknown data type {:?}",
+                command.data_type
+            ))),
+        }
     }
 
-    async fn set_dsee(&mut self, dsee: bool) -> Result<(), Error> {
-        let command: DseeCommand = DseeCommand {
-            command: CommandTypes::DseeSet,
-            enable: dsee,
-        };
-
-        Self::send_with_ack(&mut self.stream, command).await?;
-        Ok(())
-    }
-
-    async fn set_speak_to_chat(&mut self, speak_to_chat: bool) -> Result<(), Error> {
-        let command: StcCommand = StcCommand {
-            command: CommandTypes::StcSet,
-            enable: speak_to_chat,
-            _unknown: 0x01,
-        };
-
-        Self::send_with_ack(&mut self.stream, command).await?;
-        Ok(())
-    }
-
-    async fn set_auto_power_off(&mut self, auto_power_off: bool) -> Result<(), Error> {
-        Self::send_with_ack(
-            &mut self.stream,
-            AutoPowerOffCommand {
-                command: CommandTypes::AncSet,
+    async fn encode(option: DeviceMessage) -> Result<SonyCommand, Error> {
+        match option {
+            DeviceMessage::Anc(anc) => Ok(AncWF1000XM4::try_from(anc)?.try_into()?),
+            DeviceMessage::Equalizer { profile, bands } => {
+                Ok(EqualizerCommand::try_from(Equalizer { profile, bands })?.try_into()?)
+            }
+            DeviceMessage::Dsee(dsee) => Ok(DseeCommand {
+                command: MessageCode::DseeSet,
+                enable: dsee,
+            }
+            .try_into()?),
+            DeviceMessage::SpeakToChat(stc) => Ok(StcCommand {
+                command: MessageCode::StcSet,
+                enable: stc,
+                _unknown: 0x01,
+            }
+            .try_into()?),
+            DeviceMessage::AutoPowerOff(auto_power_off) => Ok(AutoPowerOffCommand {
+                command: MessageCode::AutoPowerSet,
                 enable: match auto_power_off {
                     true => ApoEnable::On,
                     false => ApoEnable::Off,
                 },
                 _unknown: 0x00,
-            },
-        )
-        .await?;
-
-        Ok(())
+            }
+            .try_into()?),
+            DeviceMessage::WearDetection(wear_detection) => Ok(PauseRemovedCommand {
+                command: MessageCode::WearDetectionSet,
+                enable: wear_detection,
+            }
+            .try_into()?),
+            _ => unimplemented!(),
+        }
     }
 
-    async fn set_pause_on_remove(&mut self, pause_on_remove: bool) -> Result<(), Error> {
-        Self::send_with_ack(
-            &mut self.stream,
-            PauseRemovedCommand {
-                command: CommandTypes::AncSet,
-                enable: pause_on_remove,
-            },
-        )
-        .await?;
-
+    async fn set(&mut self, option: DeviceMessage) -> Result<(), Error> {
+        match option {
+            _ => Self::set_and_confirm(&mut self.stream, option).await?,
+            // _ => {}
+        }
         Ok(())
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, TryFromPrimitive)]
 #[repr(u16)]
-pub enum CommandTypes {
+pub enum MessageCode {
     AncSet = 0x6815,
     AncAck = 0x6915,
     DseeSet = 0xe801,
+    DseeAck = 0xe901,
     StcSet = 0xf802,
+    StcAck = 0xf902,
     EqSet = 0x5800,
+    EqAck = 0x5900,
+    AutoPowerSet = 0x2805,
+    AutoPowerAck = 0x2905,
+    WearDetectionSet = 0xf801,
+    WearDetectionAck = 0xf901,
+    AudioQualitySet = 0xe800,
+    AudioQualityAck = 0xe900,
+    NotificationSet = 0x4801,
+    NotificationAck = 0x4901,
+    TouchControlSet = 0xf803,
+    TouchControlAck = 0xf903,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct DseeCommand {
-    command: CommandTypes,
+    command: MessageCode,
     enable: bool,
 }
 
@@ -179,7 +176,7 @@ impl TryInto<SonyCommand> for DseeCommand {
 
 #[derive(Debug, Clone, Copy)]
 struct StcCommand {
-    command: CommandTypes,
+    command: MessageCode,
     enable: bool,
     // Always 0x01
     _unknown: u8,
@@ -216,7 +213,7 @@ pub enum ApoEnable {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutoPowerOffCommand {
-    command: CommandTypes,
+    command: MessageCode,
     enable: ApoEnable,
     // Always 0x00
     _unknown: u8,
@@ -246,7 +243,7 @@ impl TryInto<SonyCommand> for AutoPowerOffCommand {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PauseRemovedCommand {
-    command: CommandTypes,
+    command: MessageCode,
     enable: bool,
 }
 
